@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black@ E-Commerce</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.5/sweetalert2.all.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.5/sweetalert2.min.css">
+    <style>
+        :root {
+            --primary: #1a237e;
+            --primary-light: #283593;
+            --accent: #ff6f00;
+            --accent-hover: #e65100;
+            --bg: #f0f2f5;
+        }
+        body { background-color: var(--bg); }
+        .navbar-custom { background: linear-gradient(135deg, var(--primary), var(--primary-light)); }
+        .navbar-brand { font-weight: bold; font-size: 1.3rem; color: white !important; letter-spacing: 1px; }
+        .btn-accent { background-color: var(--accent); color: white; border: none; }
+        .btn-accent:hover { background-color: var(--accent-hover); color: white; }
+        .btn-outline-accent { border: 2px solid var(--accent); color: var(--accent); background: transparent; }
+        .btn-outline-accent:hover { background-color: var(--accent); color: white; }
+        .product-card { transition: transform 0.2s; border: none !important; }
+        .product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(26,35,126,0.15) !important; }
+        .product-img { width:100%; height:180px; object-fit:cover; border-radius:8px 8px 0 0; }
+        .card { border-radius: 10px !important; overflow: hidden; }
+        .cart-float { position:fixed; top:80px; right:15px; z-index:999; cursor:pointer; }
+        .cart-modal-box { display:none; position:fixed; top:130px; right:15px; background:white; border:none; padding:20px; width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:1000; border-radius:12px; }
+        .badge-accent { background-color: var(--accent) !important; }
+        .page-link-custom { color: var(--primary); border: 2px solid var(--primary); border-radius: 6px; padding: 6px 14px; text-decoration: none; }
+        .page-link-custom:hover { background-color: var(--primary); color: white; }
+        .filter-card { border-left: 4px solid var(--accent) !important; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-custom px-4 mb-4 shadow">
+    <span class="navbar-brand">🛍️ Black@ E-Commerce</span>
+    <div class="d-flex align-items-center gap-3">
+        <span id="user-display" class="fst-italic small" style="color:#ffcc80;">Cargando...</span>
+        <a href="/api/sessions/logout" class="btn btn-accent btn-sm">Cerrar Sesión</a>
+    </div>
+</nav>
+
+{{{body}}}
+
+<!-- Carrito flotante -->
+<div class="cart-float" onclick="toggleCartModal()">
+    <button class="btn btn-light shadow rounded-circle p-3 position-relative">
+        🛒
+        <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill badge-accent">0</span>
+    </button>
+</div>
+
+<div class="cart-modal-box" id="cart-modal">
+    <h6 class="fw-bold mb-3" style="color:var(--primary);">Mi Carrito</h6>
+    <div id="cart-products" style="max-height:280px; overflow-y:auto; margin-bottom:10px;"></div>
+    <div class="d-flex gap-2 mt-2">
+        <a href="/cart" class="btn btn-accent btn-sm flex-fill">Ver todo</a>
+        <button onclick="toggleCartModal()" class="btn btn-outline-secondary btn-sm flex-fill">Cerrar</button>
+    </div>
+</div>
+
+<script>
+    let cartId = null;
+
+    async function initSession() {
+        try {
+            const response = await fetch('/api/sessions/current', { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('user-display').textContent = `Usuario: ${data.payload.email}`;
+                cartId = data.payload.cart?._id || data.payload.cart;
+                updateCartBadge();
+            } else {
+                window.location.replace('/login');
+            }
+        } catch (error) {
+            console.error('Error de sesión:', error);
+        }
+    }
+
+    async function addToCart(productId) {
+        if (!cartId) return Swal.fire({ icon: 'warning', title: 'Atención', text: 'Debes iniciar sesión', confirmButtonColor: '#ff6f00' });
+        try {
+            const response = await fetch(`/api/carts/${cartId}/products/${productId}`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            if (response.ok) {
+                updateCartBadge();
+                Swal.fire({ icon: 'success', title: '¡Listo!', text: 'Producto agregado al carrito', confirmButtonColor: '#ff6f00', timer: 1500, showConfirmButton: false });
+            } else {
+                const err = await response.json();
+                Swal.fire({ icon: 'error', title: 'Error', text: err.error || 'Error al agregar', confirmButtonColor: '#ff6f00' });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function updateCartBadge() {
+        if (!cartId) return;
+        try {
+            const response = await fetch(`/api/carts/${cartId}`, { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                const products = data.payload?.products || [];
+                const badge = document.getElementById('cart-count');
+                if (badge) badge.textContent = products.length;
+                renderCartModal(products);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function renderCartModal(products) {
+        const container = document.getElementById('cart-products');
+        if (!container) return;
+        container.innerHTML = products.length === 0
+            ? '<p class="text-muted small">Vacío</p>'
+            : products.map(item =>
+                `<div class="border-bottom py-2">
+                    <p class="mb-0 small">${item.product?.title || 'Producto'} <span class="text-muted">(x${item.quantity})</span></p>
+                </div>`
+              ).join('');
+    }
+
+    function toggleCartModal() {
+        const modal = document.getElementById('cart-modal');
+        modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+        if (modal.style.display === 'block') updateCartBadge();
+    }
+
+    const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+    const isPublicPage = publicPaths.some(p => window.location.pathname.startsWith(p));
+    if (!isPublicPage) initSession();
+</script>
+</body>
+</html>

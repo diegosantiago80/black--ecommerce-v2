@@ -1,0 +1,93 @@
+<div class="container">
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4 filter-card">
+        <div class="card-body py-2">
+            <form id="filterForm" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">Categoría:</label>
+                </div>
+                <div class="col-auto">
+                    <select id="category" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        <option value="Electrónica">Electrónica</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Hogar">Hogar</option>
+                        <option value="Tecnología">Tecnología</option>
+                        <option value="Periféricos">Periféricos</option>
+                        <option value="Accesorios">Accesorios</option>
+                        <option value="Muebles">Muebles</option>
+                        <option value="Redes">Redes</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">Precio:</label>
+                </div>
+                <div class="col-auto">
+                    <select id="sort" class="form-select form-select-sm">
+                        <option value="">Sin orden</option>
+                        <option value="asc">Menor a Mayor</option>
+                        <option value="desc">Mayor a Menor</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-accent btn-sm">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Grid de productos -->
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mb-4">
+        {{#each products}}
+        <div class="col">
+            <div class="card h-100 shadow-sm product-card">
+                {{#if this.thumbnails.[0]}}
+                    <img src="{{this.thumbnails.[0]}}" alt="{{this.title}}" class="product-img">
+                {{else}}
+                    <img src="/images/product-placeholder.jpg" alt="Sin imagen" class="product-img">
+                {{/if}}
+                <div class="card-body d-flex flex-column">
+                    <h6 class="card-title fw-bold">{{this.title}}</h6>
+                    <p class="card-text text-muted small flex-grow-1">{{this.description}}</p>
+                    <p class="fw-bold mb-1" style="color:var(--accent);">${{this.price}}</p>
+                    <p class="text-muted small mb-3">{{this.category}}</p>
+                    <div class="d-flex gap-2">
+                        <button onclick="window.location.href='/products/{{this._id}}'"
+                                class="btn btn-outline-accent btn-sm flex-fill">
+                            Ver detalle
+                        </button>
+                        <button onclick="addToCart('{{this._id}}')"
+                                class="btn btn-accent btn-sm flex-fill">
+                            🛒 Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+    </div>
+
+    <!-- Paginación -->
+    <nav class="d-flex justify-content-center align-items-center gap-3 mb-5">
+        {{#if hasPrevPage}}
+        <a href="/products?page={{prevPage}}" class="page-link-custom">← Anterior</a>
+        {{/if}}
+        <span class="text-muted small">Página {{currentPage}} de {{totalPages}}</span>
+        {{#if hasNextPage}}
+        <a href="/products?page={{nextPage}}" class="page-link-custom">Siguiente →</a>
+        {{/if}}
+    </nav>
+</div>
+
+<script>
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const category = document.getElementById('category').value;
+        const sort = document.getElementById('sort').value;
+        const params = [];
+        if (category) params.push(`category=${category}`);
+        if (sort) params.push(`sort=${sort}`);
+        window.location.href = `/products${params.length ? '?' + params.join('&') : ''}`;
+    });
+</script>

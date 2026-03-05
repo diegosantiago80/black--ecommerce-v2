@@ -1,0 +1,132 @@
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Mi Carrito</h1>
+        <a href="/products" class="btn btn-accent">← Seguir comprando</a>
+    </div>
+    {{#if cart}}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:var(--primary);">
+                <h5 class="mb-0">Carrito #{{cart._id}}</h5>
+                <button class="btn btn-light btn-sm" onclick="clearCart('{{cart._id}}')">Vaciar Carrito</button>
+            </div>
+            <div class="card-body">
+                {{#if cart.products.length}}
+                    {{#each cart.products}}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-3">
+                        <div>
+                            {{#if this.product}}
+                                <h4 class="mb-1">{{this.product.title}}</h4>
+                                <p class="mb-0 text-muted">Precio: <strong style="color:var(--accent)">${{this.product.price}}</strong> | Cantidad: {{this.quantity}}</p>
+                            {{else}}
+                                <p class="text-danger mb-0">Producto no disponible</p>
+                            {{/if}}
+                        </div>
+                        {{#if this.product}}
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="removeItem('{{../cart._id}}', '{{this.product._id}}')">
+                            Eliminar
+                        </button>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                    <div class="mt-4 text-end">
+                        <button class="btn btn-accent btn-lg" onclick="purchase('{{cart._id}}')">
+                            Finalizar Compra ✓
+                        </button>
+                    </div>
+                {{else}}
+                    <p class="text-center text-muted">El carrito está vacío.</p>
+                {{/if}}
+            </div>
+        </div>
+    {{else}}
+        <div class="alert alert-info text-center">No hay carrito para mostrar.</div>
+    {{/if}}
+</div>
+
+<script>
+async function removeItem(cartId, productId) {
+    const result = await Swal.fire({
+        title: '¿Eliminar producto?',
+        text: 'Esta acción no se puede deshacer',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff6f00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!result.isConfirmed) return;
+
+    const res = await fetch(`/api/carts/${cartId}/products/${productId}`, { method: 'DELETE' });
+    if (res.ok) {
+        await Swal.fire({ icon: 'success', title: 'Eliminado', text: 'Producto eliminado del carrito', confirmButtonColor: '#ff6f00', timer: 1500, showConfirmButton: false });
+        location.reload();
+    } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el producto', confirmButtonColor: '#ff6f00' });
+    }
+}
+
+async function clearCart(cartId) {
+    const result = await Swal.fire({
+        title: '¿Vaciar carrito?',
+        text: 'Se eliminarán todos los productos',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff6f00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, vaciar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!result.isConfirmed) return;
+
+    const res = await fetch(`/api/carts/${cartId}/products`, { method: 'DELETE' });
+    if (res.ok) {
+        await Swal.fire({ icon: 'success', title: 'Carrito vaciado', confirmButtonColor: '#ff6f00', timer: 1500, showConfirmButton: false });
+        location.reload();
+    } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo vaciar el carrito', confirmButtonColor: '#ff6f00' });
+    }
+}
+
+async function purchase(cartId) {
+    const result = await Swal.fire({
+        title: '¿Finalizar compra?',
+        text: 'Se procesará el pago de los productos en tu carrito',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ff6f00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, comprar',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!result.isConfirmed) return;
+
+    const res = await fetch(`/api/carts/${cartId}/purchase`, { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+
+    if (res.ok) {
+        if (data.payload.productosSinStock.length > 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Compra parcial',
+                html: `<p>Ticket: <strong>${data.payload.ticket.code}</strong></p>
+                       <p>Total: <strong style="color:#ff6f00">$${data.payload.ticket.amount}</strong></p>
+                       <p class="text-muted small">Algunos productos no tenían stock y quedaron en tu carrito.</p>`,
+                confirmButtonColor: '#ff6f00'
+            });
+        } else {
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Compra realizada!',
+                html: `<p>Ticket: <strong>${data.payload.ticket.code}</strong></p>
+                       <p>Total: <strong style="color:#ff6f00">$${data.payload.ticket.amount}</strong></p>`,
+                confirmButtonColor: '#ff6f00'
+            });
+        }
+        location.reload();
+    } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al procesar la compra', confirmButtonColor: '#ff6f00' });
+    }
+}
+</script>
